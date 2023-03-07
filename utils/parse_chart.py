@@ -9,7 +9,7 @@ def format_diff(lines, chart):
 # Read a file and extract information about bpm and difficulties
 def main(fp):
     if os.path.splitext(fp)[1] != '.ssc':
-        return ValueError("Stepfile must be an .ssc")
+        raise Exception("Stepfile must be an .ssc")
     
     #Read file
     lines = []
@@ -62,7 +62,7 @@ def main(fp):
         print(f"Chart at line {c[0]}: {c[1]} {c[2]}")
 
     bpms = []
-    # Convert BPM string to floating point list of timing points (time, bpm)
+    # Convert BPM string to floating point list of timing points (beat#, bpm)
     for timingpoint in bpmstr.split(','):
         values = (float(v) for v in timingpoint.split('='))
         bpms.append(values)
