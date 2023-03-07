@@ -38,12 +38,7 @@ def main(fp):
             readingbpm = True
             continue
         
-        if lines[i].startswith("#NOTEDATA"):
-            startind = i
-            
-            #Seek to difficulty name declaration
-            while not lines[i].startswith("#DIFFICULTY"):
-                i += 1
+        if lines[i].startswith("#DIFFICULTY"):
             clean = lines[i].strip(";\n")
             name = clean[clean.index(":")+1:]
 
@@ -52,7 +47,11 @@ def main(fp):
                 i += 1
             clean = lines[i].strip(";\n")
             difficulty = int(clean[clean.index(":")+1:])
-            charts.append((startind, name, difficulty))
+
+            while not lines[i].startswith("#NOTES"):
+                i += 1
+            
+            charts.append((i, name, difficulty))
             continue
 
     
