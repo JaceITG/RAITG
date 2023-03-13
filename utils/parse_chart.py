@@ -1,10 +1,67 @@
 import os, sys
 
+# Take measure in a lower snap and return array of notes separated by
+# counts of how many 192nd rest beats are between each
+def conv_measure(measure):
+    snap = len(measure)
+
+    scalar = int(192/snap)
+
+    rest = 0
+    newlines = []
+    for m in measure:
+        if m == "0000":
+            rest += scalar
+            continue
+        
+        if rest>0:
+            newlines.append(f"r{rest}")
+            rest = 0
+
+        newlines.append(m)
+        rest += scalar - 1
+
+    #Add remaining rest
+    if rest>0:
+            newlines.append(f"r{rest}")
+            rest = 0
+    
+    return newlines
+
 # For a chart (start_ind, name, difficulty) in lines, write a file
 # containing metadata header followed by note data
 # converted to 192nd notes
-def format_diff(lines, chart):
-    pass
+def format_diff(songname, lines, chart):
+    with open(f"{songname} [{chart[2]}].cht", 'w') as f:
+
+        #Get first note line
+        index = chart[0] + 1
+        note = lines[index]
+
+        #While end of chart (;) not found
+        while not note.startswith(';'):
+            #Collect measure
+            measure = []
+            while not note.startswith(','):
+
+                if note.startswith('//'):
+                    #ignore comments
+                    continue
+
+                measure.append(note)
+                index += 1
+                note = lines[index]
+            
+            #Convert to 192nd
+            converted = conv_measure(measure)
+            #Write to file
+            for l in converted:
+                f.write(l)
+                f.write("\n")
+            
+            #Move to next measure
+            index += 1
+            note = lines[index]
 
 # Read a file and extract information about bpm and difficulties
 def main(fp):
@@ -66,6 +123,9 @@ def main(fp):
     for timingpoint in bpmstr.split(','):
         values = (float(v) for v in timingpoint.split('='))
         bpms.append(values)
+    
+    for c in charts:
+        format_diff(os.path.splitext(fp)[0], lines, c)
             
 
 
