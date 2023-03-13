@@ -132,9 +132,9 @@ def main(fp):
         values = (float(v) for v in timingpoint.split('='))
         bpms.append(values)
     
-    # for c in charts:
-    #     format_diff(c[0], lines, c)
-    format_diff("drop pop candy", lines, charts[0])
+    for c in charts:
+        format_diff(os.path.splitext(fp)[0], lines, c)
+
 
 
 if __name__ == "__main__":
