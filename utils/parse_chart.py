@@ -32,36 +32,44 @@ def conv_measure(measure):
 # containing metadata header followed by note data
 # converted to 192nd notes
 def format_diff(songname, lines, chart):
-    with open(f"{songname} [{chart[2]}].cht", 'w') as f:
+    with open(f"../data/{songname} [{chart[2]}].cht", 'w') as f:
 
         #Get first note line
         index = chart[0] + 1
-        note = lines[index]
+        note = lines[index].strip('\n')
 
         #While end of chart (;) not found
         while not note.startswith(';'):
             #Collect measure
             measure = []
             while not note.startswith(','):
+                if note.startswith(";"):
+                    #Why would you end a chart before closing a measure, you're killing me .ssc
+                    break
 
                 if note.startswith('//'):
                     #ignore comments
+                    index += 1
+                    note = lines[index].strip('\n')
                     continue
 
                 measure.append(note)
                 index += 1
-                note = lines[index]
+                note = lines[index].strip('\n')
             
             #Convert to 192nd
             converted = conv_measure(measure)
             #Write to file
             for l in converted:
-                f.write(l)
-                f.write("\n")
+                f.write(f"{l}\n")
             
+            #Pain
+            if note.startswith(';'):
+                break
+
             #Move to next measure
             index += 1
-            note = lines[index]
+            note = lines[index].strip('\n')
 
 # Read a file and extract information about bpm and difficulties
 def main(fp):
@@ -124,9 +132,9 @@ def main(fp):
         values = (float(v) for v in timingpoint.split('='))
         bpms.append(values)
     
-    for c in charts:
-        format_diff(os.path.splitext(fp)[0], lines, c)
-            
+    # for c in charts:
+    #     format_diff(c[0], lines, c)
+    format_diff("drop pop candy", lines, charts[0])
 
 
 if __name__ == "__main__":
