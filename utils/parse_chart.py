@@ -128,7 +128,9 @@ def main(fp):
             readingbpm = True
             continue
         
-        if lines[i].startswith("#DIFFICULTY"):
+        if lines[i].startswith("#STEPSTYPE:dance-single"):
+            while not lines[i].startswith("#DIFFICULTY"):
+                i += 1
             clean = lines[i].strip(";\n")
             name = clean[clean.index(":")+1:]
 
