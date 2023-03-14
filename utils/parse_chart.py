@@ -43,7 +43,7 @@ def conv_measure(measure, bpms, meas_number):
 # containing metadata header followed by note data
 # converted to 192nd notes
 def format_diff(songname, lines, chart, bpms):
-    with open(f"../data/{songname} [{chart[2]}].cht", 'w') as f:
+    with open(f"../data/dataset/{songname} [{chart[2]}].cht", 'w') as f:
 
         #Get first note line
         index = chart[0] + 1
@@ -163,7 +163,8 @@ def main(fp):
         print(f"Chart at line {c[0]}: {c[1]} {c[2]}")
 
     for c in charts:
-        format_diff(os.path.splitext(fp)[0], lines, c, bpms)
+        fname = os.path.basename(fp)
+        format_diff(os.path.splitext(fname)[0], lines, c, bpms)
 
 
 
