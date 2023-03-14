@@ -21,12 +21,14 @@ def conv_measure(measure, bpm_changes=None):
             beat += rest / 48 #beat increments 1/48 for each rest note
             rest = 0
 
+        newlines.append(m)
+
         #if bpm changed on/before current beat
         if bpm_changes and len(bpm_changes)>0 and bpm_changes[0][0] <= beat:
             change = bpm_changes.pop(0)
             newlines.append(f"bpm{change[1]}")
 
-        newlines.append(m)
+
         #Progress beat by 1/48 for single 192nd note
         beat += 1/48
         rest += scalar - 1
