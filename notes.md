@@ -12,3 +12,4 @@
 - DNN? CNN?
 - Deep Neural Network with many hidden layers between input and output data
 - From Pandas DataFrame: chart diff, notedata[ beat[ arrows,bpm ], beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
+- in which: arrows are categorical, bpm numerical

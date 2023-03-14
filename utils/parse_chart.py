@@ -2,41 +2,40 @@ import os, sys
 
 # Take measure in a lower snap and return array of notes separated by
 # counts of how many 192nd rest beats are between each
-def conv_measure(measure, bpm_changes=None):
+def conv_measure(measure, bpms, meas_number):
     snap = len(measure)
 
     scalar = int(192/snap)
 
-    rest = 0
     newlines = []
     beat = 0.0
+    bpm = 0
+    relevant_changes = []
+
+    #find starting bpm of measure
+    for change in bpms:
+        if change[0] < meas_number*4:
+            #if bpm change happened before this measure
+            bpm = change[1]
+        elif change[0] - meas_number*4 <= 4:
+            #if bpm will change in this measure
+            relevant_changes.append(change)
+            break
+
+    #write notes from measure
     for m in measure:
-
-        if m == "0000":
-            rest += scalar
-            continue
-        
-        if rest>0:
-            newlines.append(f"r{rest}")
-            beat += rest / 48 #beat increments 1/48 for each rest note
-            rest = 0
-
-        newlines.append(m)
+        newlines.append(f"{m},{bpm}")
 
         #if bpm changed on/before current beat
-        if bpm_changes and len(bpm_changes)>0 and bpm_changes[0][0] <= beat:
-            change = bpm_changes.pop(0)
-            newlines.append(f"bpm{change[1]}")
+        if len(relevant_changes)>0 and relevant_changes[0][0] <= (meas_number*4 + beat):
+            change = relevant_changes.pop(0)
+            bpm = change[1]
 
-
-        #Progress beat by 1/48 for single 192nd note
-        beat += 1/48
-        rest += scalar - 1
-
-    #Add remaining rest
-    if rest>0:
-        newlines.append(f"r{rest}")
-        rest = 0
+        #Progress beat by scalar/48 for appropriate num 192nd notes
+        beat += scalar/48
+        #Append an empty note for each 192nd rest
+        for i in range(scalar - 1):
+            newlines.append(f"0000,{bpm}")
     
     return newlines
 
@@ -71,20 +70,20 @@ def format_diff(songname, lines, chart, bpms):
                 note = lines[index].strip('\n')
             
             #Check for bpm changes
-            relevant_changes = []
-            for change in bpms:
-                #If beat index is within 4 beats after this measure
-                change_bpm = change[0] - meas_number*4
-                if change_bpm >= 4 or change_bpm < 0:
-                    change_bpm = None
-                else:
-                    #Add (beats after start measure, new bpm)
-                    relevant_changes.append((change_bpm, change[1]))
-            if len(relevant_changes) < 1:
-                relevant_changes = None
+            # relevant_changes = []
+            # for change in bpms:
+            #     #If beat index is within 4 beats after this measure
+            #     change_bpm = change[0] - meas_number*4
+            #     if change_bpm >= 4 or change_bpm < 0:
+            #         change_bpm = None
+            #     else:
+            #         #Add (beats after start measure, new bpm)
+            #         relevant_changes.append((change_bpm, change[1]))
+            # if len(relevant_changes) < 1:
+            #     relevant_changes = None
 
             #Convert to 192nd
-            converted = conv_measure(measure, relevant_changes)
+            converted = conv_measure(measure, bpms, meas_number)
             #Write to file
             for l in converted:
                 f.write(f"{l}\n")
