@@ -96,7 +96,6 @@ def format_diff(songname, lines, chart, bpms):
             index += 1
             note = lines[index].strip('\n')
             meas_number += 1
-        f.write(f"{meas_number}")
     
     with open("../data/dataset/meascounts.txt", 'a') as f:
         f.write(f"{meas_number},")
