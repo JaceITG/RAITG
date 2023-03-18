@@ -1,4 +1,5 @@
 import parse_chart, os
+from progress.bar import Bar
 
 fp = os.path.abspath("../data/Songs/")
 
@@ -22,7 +23,7 @@ for pack in os.listdir(fp):
                     sscs.append(file)
                     count += 1
 
-
-for i in range(len(sscs)):
-    parse_chart.main(sscs[i])
-    bar.update(i)
+with Bar('Parsing...',suffix='%(percent).1f%% - %(eta)ds',max=count) as bar:
+    for i in range(len(sscs)):
+        parse_chart.main(sscs[i])
+        bar.next()
