@@ -96,6 +96,10 @@ def format_diff(songname, lines, chart, bpms):
             index += 1
             note = lines[index].strip('\n')
             meas_number += 1
+        f.write(f"{meas_number}")
+    
+    with open("../data/dataset/meascounts.txt", 'a') as f:
+        f.write(f"{meas_number},")
 
 # Read a file and extract information about bpm and difficulties
 def main(fp):
@@ -149,18 +153,18 @@ def main(fp):
 
     
 
-    print(bpmstr)
+    #print(bpmstr)
     bpms = []
     # Convert BPM string to floating point list of timing points (beat#, bpm)
     for timingpoint in bpmstr.split(','):
         values = tuple(float(v) for v in timingpoint.split('='))
         bpms.append(values)
 
-    bpmstr = bpmstr.replace(',','\n')
-    print(f"BPM breakdown:\n{bpmstr}")
-    print()
-    for c in charts:
-        print(f"Chart at line {c[0]}: {c[1]} {c[2]}")
+    # bpmstr = bpmstr.replace(',','\n')
+    # print(f"BPM breakdown:\n{bpmstr}")
+    # print()
+    # for c in charts:
+    #     print(f"Chart at line {c[0]}: {c[1]} {c[2]}")
 
     for c in charts:
         fname = os.path.basename(fp)

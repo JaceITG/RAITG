@@ -1,6 +1,6 @@
 # Notes
 
-## CHART PARSING
+## Chart Parsing
 
 - Convert all patterns to 192nd quantization by inserting 0000 lines
 - Could also denote 0000 lines as a sentinel integer denoting N 192nds of rest between each note
@@ -13,3 +13,7 @@
 - Deep Neural Network with many hidden layers between input and output data
 - From Pandas DataFrame: chart diff, notedata[ beat[ arrows,bpm ], beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
 - in which: arrows are categorical, bpm numerical
+
+## Dataset
+
+- Dimocracy, Notice Me Benpai
