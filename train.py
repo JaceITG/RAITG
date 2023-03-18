@@ -1,13 +1,14 @@
-#import autokeras as ak
+import autokeras as ak
 import pandas as pd
 import numpy as np
 import os
 
-# Create a Pandas DataFrame object from the .cht files in dataset.
-# Each chart in shape [ beat[ arrows,bpm ], beat[ arrows,bpm ], beat[ arrows,bpm ], ..., difficulty]
-# With output being array[-1] (difficulty)
-def create_dframe(dataset):
-    arr = []
+# Create an array of AutoKeras StructuredDataInput nodes from the .cht files in dataset.
+# Each input node in shape [ beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
+# Each output node as integer difficulty
+def create_nodes(dataset):
+    inputs = []
+    outputs = []
 
     maxm = 0
     chart_count = 0
@@ -18,9 +19,6 @@ def create_dframe(dataset):
             maxm = max(maxm, int(c))
             chart_count += 1
 
-    #arr = np.array(np.zeros(shape=(chart_count,(maxm+1)*192)))
-
-    cnt = 0
     for f in os.listdir(dataset):
 
         #skip non-cht files
@@ -38,25 +36,24 @@ def create_dframe(dataset):
             for l in datalines:
                 #Turn info about a beat into array [arrows, bpm (float)]
                 pointinfo = l.strip('\n').split(',')
-                beat = (pointinfo[0], float(pointinfo[1]))
+                beat = [pointinfo[0], float(pointinfo[1])]
                 notedata.append(beat)
             
             #append empty measures if shorter than longest chart
             difference = ((maxm+1)*192) - len(notedata)
             if difference > 0:
                 lastbpm = notedata[-1][1]
-                blank = [("0000",lastbpm) for i in range(difference)]
+                blank = [["0000",lastbpm] for i in range(difference)]
                 notedata += blank
 
+        types = {'Note':'categorical', 'BPM':'Numerical'}
+        cname = os.path.basename(fp)
+        node = ak.StructuredDataInput(column_names=['Note', 'BPM'],column_types=types, name=cname)
+        inputs.append(node)
+        outputs.append(difficulty)
 
-        notedata.append(difficulty)
-        new = np.array(notedata, dtype=object)
-        arr.append(new)
-        cnt += 1
-
-    arr = np.vstack(tuple(c for c in arr))
-
-    print(np.shape(arr))
+    print(np.shape(inputs))
+    #print(arr[0,-10:])
     
 
-create_dframe('./data/dataset/')
+create_nodes('./data/dataset/')
