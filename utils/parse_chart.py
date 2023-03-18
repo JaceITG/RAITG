@@ -1,5 +1,7 @@
 import os, sys
 
+datasetdir = ""
+
 # Take measure in a lower snap and return array of notes separated by
 # counts of how many 192nd rest beats are between each
 def conv_measure(measure, bpms, meas_number):
@@ -43,7 +45,7 @@ def conv_measure(measure, bpms, meas_number):
 # containing metadata header followed by note data
 # converted to 192nd notes
 def format_diff(songname, lines, chart, bpms):
-    with open(f"../data/dataset/{songname} [{chart[2]}].cht", 'w') as f:
+    with open(f"{datasetdir}/{songname} [{chart[2]}].cht", 'w') as f:
 
         #Get first note line
         index = chart[0] + 1
@@ -97,18 +99,25 @@ def format_diff(songname, lines, chart, bpms):
             note = lines[index].strip('\n')
             meas_number += 1
     
-    with open("../data/dataset/meascounts.txt", 'a') as f:
+    with open(f"{datasetdir}/meascounts.txt", 'a') as f:
         f.write(f"{meas_number},")
 
 # Read a file and extract information about bpm and difficulties
-def main(fp):
+def main(fp, output_dir='C:/Users/Jace/Desktop/Code/RAITG/data/dataset'):
+    global datasetdir
+    datasetdir = output_dir
+
     if os.path.splitext(fp)[1] != '.ssc':
         raise Exception("Stepfile must be an .ssc")
     
     #Read file
     lines = []
-    with open(fp) as f:
-        lines = f.readlines()
+    try:
+        with open(fp, encoding='utf8') as f:
+            lines = f.readlines()
+    except UnicodeDecodeError as e:
+        print(f"Error reading chart {fp}:\n{e}")
+        return
 
     bpmstr = ""
     readingbpm = False

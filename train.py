@@ -1,8 +1,12 @@
-import autokeras as ak
 import pandas as pd
 import numpy as np
 import os
+from datetime import datetime
 from progress.bar import Bar
+
+### Keras Setup ###
+import autokeras as ak
+import keras_tuner
 
 # Create an array of AutoKeras StructuredDataInput nodes from the .cht files in dataset.
 # Each input node in shape [ beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
@@ -60,4 +64,31 @@ def create_nodes(dataset):
     
     return inputs, outputs
 
-create_nodes('./data/dataset/')
+if __name__ == "__main__":
+    inputs, outputs = create_nodes('./data/dataset/')
+    dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
+    model = ak.StructuredDataRegressor(
+        inputs=inputs,
+        outputs=outputs,
+        project_name=dt,
+        directory='./data/model',
+        max_trials=5,
+        tuner="hyperband")
+    
+    print(f"Model {model} created")
+    print("~~~~~~~~~~~~~~~")
+
+    print("Predicting Sample")
+    samplein, sampleout = create_nodes('./data/testset')
+    prediction = model.predict(samplein)
+    
+    #Display the predicted difficulties alongside actual
+    total_error = 0
+    for i in range(len(prediction)):
+        errorperc = ( abs(prediction[i] - sampleout[i]) / float(sampleout[i]) ) * 100
+        print(f"Predicted {prediction[i]:02}\tActual {sampleout[i]:02} (Error: {errorperc:02.01}%)")
+        total_error += errorperc
+
+    print()
+    print(f"Average error: {total_error/len(prediction)}")
+
