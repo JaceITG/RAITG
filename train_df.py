@@ -1,25 +1,21 @@
 import pandas as pd
 import numpy as np
-import os
+import os, csv
 from datetime import datetime
 from progress.bar import Bar
 
 ### Keras Setup ###
 import autokeras as ak
-import keras_tuner as kt
+# import keras_tuner as kt
 
-import tensorflow as tf
-from tensorflow import keras
+# import tensorflow as tf
+# from tensorflow import keras
 inputshape = (0,0)
 
 # Create an array of AutoKeras StructuredDataInput nodes from the .cht files in dataset.
 # Each input node in shape [ beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
 # Each output node as integer difficulty
 def create_nodes(dataset):
-    global inputshape
-
-    inputs = []
-    outputs = []
 
     maxm = 0
     chart_count = 0
@@ -29,7 +25,10 @@ def create_nodes(dataset):
         for c in f.read()[:-1].split(','):
             maxm = max(maxm, int(c))
             chart_count += 1
-
+    
+    chts = []
+    outputs_df = pd.DataFrame(columns=['difficulty'])
+    idx = 0
     with Bar('Loading nodes...',suffix='%(percent).1f%% - %(eta)ds',max=len(os.listdir(dataset))) as bar:
         for f in os.listdir(dataset):
 
@@ -39,59 +38,24 @@ def create_nodes(dataset):
                 continue
 
             fp = os.path.join(dataset,f)
-            row = []
             difficulty = int( f[ f.rfind('[')+1 : f.rfind(']') ] )
 
-            notedata = []
-            with open(fp, 'r') as data:
-                datalines = data.readlines()
-
-                for l in datalines:
-                    #Turn info about a beat into array [arrows, bpm (float)]
-                    pointinfo = l.strip('\n').split(',')
-                    beat = [pointinfo[0], float(pointinfo[1])]
-                    notedata.append(beat)
-                
-                #append empty measures if shorter than longest chart
+            with open(fp, 'r') as f:
+                reader = csv.reader(f)
+                notedata = list(map(tuple, reader))
                 difference = ((maxm+1)*192) - len(notedata)
                 if difference > 0:
                     lastbpm = notedata[-1][1]
                     blank = [["0000",lastbpm] for i in range(difference)]
                     notedata += blank
-
-            types = {'Note':'categorical', 'BPM':'Numerical'}
-            cname = os.path.basename(fp)
-            node = ak.StructuredDataInput(column_names=['Note', 'BPM'],column_types=types, name=cname)
-            inputs.append(node)
-            outputs.append(difficulty)
+            
+            chts.append(notedata)
+            outputs_df.loc[idx] = difficulty
+            idx += 1
             bar.next()
 
-    print(f"{len(inputs)} nodes")
-    
-    inputshape = (len(inputs),len(inputs[0]))
-    return inputs, outputs
-
-
-def model_builder(hp):
-    global inputshape
-    model = keras.Sequential()
-    model.add(keras.layers.Flatten(input_shape=inputshape))
-
-    # Tune the number of units in the first Dense layer
-    # Choose an optimal value between 32-512
-    hp_units = hp.Int('units', min_value=32, max_value=512, step=32)
-    model.add(keras.layers.Dense(units=hp_units, activation='relu'))
-    model.add(keras.layers.Dense(10))
-
-    # Tune the learning rate for the optimizer
-    # Choose an optimal value from 0.01, 0.001, or 0.0001
-    hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
-
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=hp_learning_rate),
-                loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-                metrics=['accuracy'])
-
-    return model
+    inputs_df = pd.DataFrame(chts, columns=[str(i) for i in range((maxm+1)*192)])
+    return inputs_df, outputs_df
 
 
 if __name__ == "__main__":
@@ -104,16 +68,16 @@ if __name__ == "__main__":
     #     directory='./data/model',
     #     project_name=dt)
 
-    model = ak.StructuredDataRegressor(
-        inputs=inputs,
-        outputs=outputs,
+
+
+    model = ak.StructuredDataClassifier(
         project_name=dt,
         directory='./data/model',
-        max_trials=5,
-        tuner="hyperband")
-    
+        max_trials=10)
+    model.fit(x=inputs,y=outputs)
     print(f"Model {model} created")
     print("~~~~~~~~~~~~~~~")
+
 
     print("Predicting Sample")
     samplein, sampleout = create_nodes('./data/testset')
