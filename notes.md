@@ -18,7 +18,7 @@
 
 - Dimocracy, Notice Me Benpai
 - Preprocessing: Need identification of beat points as (categorical, numerical) data
-- Must be context-dependent with respect to column index in row
+- Must be context-dependent with respect to column index in row (ngrams?)
 - Use string lookup for categorical beat type
 
 ```vocab = ["a", "b", "c", "d"]

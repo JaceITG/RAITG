@@ -43,11 +43,11 @@ def create_nodes(dataset):
 
             with open(fp, 'r') as f:
                 reader = csv.reader(f)
-                notedata = list(map(tuple, reader))
+                notedata = list(map(list, reader))
                 difference = ((maxm+1)*192) - len(notedata)
                 if difference > 0:
                     lastbpm = notedata[-1][1]
-                    blank = [("0000",lastbpm) for i in range(difference)]
+                    blank = [["0000",lastbpm] for i in range(difference)]
                     notedata += blank
             
             chts.append(notedata)
@@ -56,8 +56,8 @@ def create_nodes(dataset):
             idx += 1
             bar.next()
 
-    inputs_df = pd.DataFrame(chts, columns=[str(i) for i in range((maxm+1)*192)])
-    # inputs_df = tf.data.Dataset.from_tensor_slices(chts)
+    #inputs_df = pd.DataFrame(chts, columns=[str(i) for i in range((maxm+1)*192)])
+    inputs_df = tf.data.Dataset.from_tensor_slices(chts)
     # outputs_df = tf.data.Dataset.from_tensor_slices(outputs)
     # print(inputs_df.element_spec)
     # print(outputs_df.element_spec)
@@ -65,11 +65,11 @@ def create_nodes(dataset):
     return inputs_df, outputs_df
 
 def df_to_dataset(dataframe, outputdf, shuffle=True, batch_size=32):
-    df = dataframe.copy()
-    df = {key: value[:,tf.newaxis] for key, value in dataframe.items()}
-    ds = tf.data.Dataset.from_tensor_slices(dict(df))
+    # df = dataframe.copy()
+    # df = {key: value[:,tf.newaxis] for key, value in dataframe.items()}
+    #ds = tf.data.Dataset.from_tensor_slices(dict(df))
     out = tf.data.Dataset.from_tensor_slices(outputdf)
-    ds = tf.data.Dataset.zip((ds, out))
+    ds = tf.data.Dataset.zip((dataframe, out))
     if shuffle:
         ds = ds.shuffle(buffer_size=len(dataframe))
         ds = ds.batch(batch_size)
@@ -78,10 +78,10 @@ def df_to_dataset(dataframe, outputdf, shuffle=True, batch_size=32):
 
 if __name__ == "__main__":
     inputs_df, outputs_df = create_nodes('./data/dataset/')
-    print(inputs_df.head())
-    ds = df_to_dataset(inputs_df,outputs_df, shuffle=False)
+    #print(inputs_df.head())
+    ds = df_to_dataset(inputs_df,outputs_df, shuffle=False, batch_size=5)
     [(sampnotes, sampdiff)] = ds.take(1)
-    print('Every feature:', list(sampnotes.keys()))
+    print('Every feature:', sampnotes)
     print('A batch of targets:', sampdiff )
 else:
     dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
