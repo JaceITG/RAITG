@@ -17,3 +17,16 @@
 ## Dataset
 
 - Dimocracy, Notice Me Benpai
+- Preprocessing: Need identification of beat points as (categorical, numerical) data
+- Must be context-dependent with respect to column index in row
+- Use string lookup for categorical beat type
+
+```vocab = ["a", "b", "c", "d"]
+data = tf.constant([["a", "c", "d"], ["d", "z", "b"]])
+layer = layers.StringLookup(vocabulary=vocab)
+vectorized_data = layer(data)
+print(vectorized_data)
+
+tf.Tensor(
+[[1 3 4]
+ [4 0 2]], shape=(2, 3), dtype=int64)```

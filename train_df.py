@@ -8,7 +8,7 @@ from progress.bar import Bar
 import autokeras as ak
 # import keras_tuner as kt
 
-# import tensorflow as tf
+import tensorflow as tf
 # from tensorflow import keras
 inputshape = (0,0)
 
@@ -28,6 +28,7 @@ def create_nodes(dataset):
     
     chts = []
     outputs_df = pd.DataFrame(columns=['difficulty'])
+    outputs = []
     idx = 0
     with Bar('Loading nodes...',suffix='%(percent).1f%% - %(eta)ds',max=len(os.listdir(dataset))) as bar:
         for f in os.listdir(dataset):
@@ -46,35 +47,50 @@ def create_nodes(dataset):
                 difference = ((maxm+1)*192) - len(notedata)
                 if difference > 0:
                     lastbpm = notedata[-1][1]
-                    blank = [["0000",lastbpm] for i in range(difference)]
+                    blank = [("0000",lastbpm) for i in range(difference)]
                     notedata += blank
             
             chts.append(notedata)
             outputs_df.loc[idx] = difficulty
+            #outputs.append(difficulty)
             idx += 1
             bar.next()
 
     inputs_df = pd.DataFrame(chts, columns=[str(i) for i in range((maxm+1)*192)])
+    # inputs_df = tf.data.Dataset.from_tensor_slices(chts)
+    # outputs_df = tf.data.Dataset.from_tensor_slices(outputs)
+    # print(inputs_df.element_spec)
+    # print(outputs_df.element_spec)
+    #ds = tf.data.Dataset.zip((inputs_df,outputs_df))
     return inputs_df, outputs_df
 
+def df_to_dataset(dataframe, outputdf, shuffle=True, batch_size=32):
+    df = dataframe.copy()
+    df = {key: value[:,tf.newaxis] for key, value in dataframe.items()}
+    ds = tf.data.Dataset.from_tensor_slices(dict(df))
+    out = tf.data.Dataset.from_tensor_slices(outputdf)
+    ds = tf.data.Dataset.zip((ds, out))
+    if shuffle:
+        ds = ds.shuffle(buffer_size=len(dataframe))
+        ds = ds.batch(batch_size)
+        ds = ds.prefetch(batch_size)
+    return ds
 
 if __name__ == "__main__":
-    inputs, outputs = create_nodes('./data/dataset/')
+    inputs_df, outputs_df = create_nodes('./data/dataset/')
+    print(inputs_df.head())
+    ds = df_to_dataset(inputs_df,outputs_df, shuffle=False)
+    [(sampnotes, sampdiff)] = ds.take(1)
+    print('Every feature:', list(sampnotes.keys()))
+    print('A batch of targets:', sampdiff )
+else:
     dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
-    # tuner = kt.Hyperband(model_builder,
-    #     objective='val_accuracy',
-    #     max_epochs=10,
-    #     factor=3,
-    #     directory='./data/model',
-    #     project_name=dt)
-
-
 
     model = ak.StructuredDataClassifier(
         project_name=dt,
         directory='./data/model',
         max_trials=10)
-    model.fit(x=inputs,y=outputs)
+    model.fit(x=dataset)
     print(f"Model {model} created")
     print("~~~~~~~~~~~~~~~")
 
