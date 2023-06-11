@@ -30,3 +30,9 @@ print(vectorized_data)
 tf.Tensor(
 [[1 3 4]
  [4 0 2]], shape=(2, 3), dtype=int64)```
+
+## REVAMPED APPROACH
+
+- Use `simfile` package for interpretation of discrete time-values for notes
+- Note data for a chart should be an ordinary list of numpy.array
+- Each numpy array contains a numerical encoding of the desired features
