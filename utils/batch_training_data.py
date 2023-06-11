@@ -1,4 +1,4 @@
-import parse_chart, os, sys
+import parse_chart, os, sys, shutil
 from progress.bar import Bar
 
 
@@ -7,8 +7,8 @@ def batch(fp, output):
     count = 0 
 
     #clear output directory
-    for f in os.listdir(output):
-        os.remove(os.path.join(output,f))
+    # for f in os.listdir(output):
+    #     os.remove(os.path.join(output,f))
 
     #iterate through pack folders
     for pack in os.listdir(fp):
@@ -22,6 +22,10 @@ def batch(fp, output):
                     if os.path.isfile(file) and os.path.splitext(f)[1] == '.ssc':
                         sscs.append(file)
                         count += 1
+                        shutil.copyfile(file, f'../data/dataset/{f}')
+
+    ###OLD PARSER###
+    return
 
     with Bar('Parsing...',suffix='%(percent).1f%% - %(eta)ds',max=count) as bar:
         for i in range(len(sscs)):
@@ -31,7 +35,7 @@ def batch(fp, output):
 
 if __name__ == "__main__":
         
-    fp = "C:/Users/Jace/Desktop/Code/RAITG/data/Songs"
+    fp = "C:/Users/Jace/Desktop/Code/RAITG/data/Training Songs"
     output = None
 
     #Parse args
