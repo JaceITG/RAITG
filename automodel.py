@@ -8,6 +8,10 @@ from progress.bar import Bar
 import simfile
 from simfile.timing.engine import TimingEngine, TimingData
 from simfile.notes import NoteData, NoteType
+from simfile.notes.group import SameBeatNotes
+import simfile.notes.count as Count
+
+relevant_notes = [NoteType.TAP, NoteType.HOLD_HEAD, NoteType.ROLL_HEAD, NoteType.TAIL]
 
 ### Keras Setup ###
 import autokeras as ak
@@ -26,8 +30,22 @@ def create_nodes(dataset):
     inputs = []
     outputs = []
 
-    maxm = 0
+    maxnotes = 0
     chart_count = 0
+
+    for f in os.listdir(dataset):
+        fp = os.path.join(dataset, f)
+        song = simfile.open(fp)
+
+        for chart in song.charts:
+            numnotes = Count.count_steps(\
+                notes=NoteData(chart),\
+                include_note_types=relevant_notes,\
+                same_beat_notes=SameBeatNotes.KEEP_SEPARATE)
+            
+            maxnotes = max(maxnotes, numnotes)
+
+    print(f"Maximum note count: {maxnotes}")
 
     with Bar('Loading nodes...',suffix='%(percent).1f%% - %(eta)ds',max=len(os.listdir(dataset))) as bar:
         for f in os.listdir(dataset):
@@ -43,7 +61,7 @@ def create_nodes(dataset):
                 timing = TimingEngine(TimingData(song, chart))
                 chart_data = NoteData(chart)
                 notes = [(timing.time_at(note.beat), note.column, note.note_type, note.beat) for note in chart_data\
-                         if note.note_type in {NoteType.TAP, NoteType.HOLD_HEAD, NoteType.ROLL_HEAD, NoteType.TAIL}]
+                         if note.note_type in relevant_notes]
 
                 # print(f'{song.title} [{chart.difficulty}]')
                 # last = None
@@ -78,7 +96,12 @@ def create_nodes(dataset):
                     elif note[2] == NoteType.TAIL:
                         holds[note[1]] = 0
                 
-                # print(f'{song.title} [{chart.difficulty}]')
+                #pad chart for maximum note length
+                blankend = np.array([0]*10, dtype=np.float32)
+                blankend[0] = data[-1][0] + 1
+                data += [blankend for i in range(maxnotes - len(data))]
+
+                print(f'{song.title} [{chart.difficulty}] Notes: {len(data)}')
                 # for n in data[-10:]:
                 #     print("Note:")
                 #     print(n)
