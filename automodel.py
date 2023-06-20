@@ -7,7 +7,7 @@ from progress.bar import Bar
 ### Simfile ###
 import simfile
 from simfile.timing.engine import TimingEngine, TimingData
-from simfile.notes import NoteData
+from simfile.notes import NoteData, NoteType
 
 ### Keras Setup ###
 import autokeras as ak
@@ -42,12 +42,48 @@ def create_nodes(dataset):
                 #Instantiate timing and note data for the chart
                 timing = TimingEngine(TimingData(song, chart))
                 chart_data = NoteData(chart)
-                notes = [(timing.time_at(note.beat), note.column, note.note_type) for note in chart_data]
+                notes = [(timing.time_at(note.beat), note.column, note.note_type, note.beat) for note in chart_data\
+                         if note.note_type in {NoteType.TAP, NoteType.HOLD_HEAD, NoteType.ROLL_HEAD, NoteType.TAIL}]
 
                 # print(f'{song.title} [{chart.difficulty}]')
+                # last = None
                 # for t in notes[-5:]:
-                #     print(t)
-            
+                #     print(f'{t} Diff beat? {t[3]!=last[3] if last else "N/A"}')
+                #     last = t
+
+
+                data = []
+                holds = np.zeros(4)
+                last_time = notes[0][0] - 5 #default starting rest of 5 seconds 
+
+                for note in notes:
+                    #Create an nparray for attributes of the note
+                    # time, time since last, 4 columns tap, 4 columns held
+                    data += [np.array([0]*10, dtype=np.float32)]
+
+                    #carry over current held notes
+                    data[-1][6:] = holds
+
+                    data[-1][0] = note[0]   #time
+                    data[-1][1] = min((note[0] - last_time), 5)   #time since last note, cap extended rests at 5
+                    last_time = note[0]
+
+                    if note[2] == NoteType.TAP:
+                        data[-1][2+note[1]] = 1
+
+                    elif note[2] == NoteType.HOLD_HEAD or note[2] == NoteType.ROLL_HEAD:
+                        data[-1][2+note[1]] = 1
+                        holds[note[1]] = 1
+
+                    elif note[2] == NoteType.TAIL:
+                        holds[note[1]] = 0
+                
+                # print(f'{song.title} [{chart.difficulty}]')
+                # for n in data[-10:]:
+                #     print("Note:")
+                #     print(n)
+
+                
             bar.next()
 
     return
