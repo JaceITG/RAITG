@@ -101,61 +101,71 @@ def create_nodes(dataset):
                 blankend[0] = data[-1][0] + 1
                 data += [blankend for i in range(maxnotes - len(data))]
 
-                print(f'{song.title} [{chart.difficulty}] Notes: {len(data)}')
+                # print(f'{song.title} [{chart.difficulty}] Notes: {len(data)}')
                 # for n in data[-10:]:
                 #     print("Note:")
                 #     print(n)
 
+                inputs.append(np.vstack(data).T)
+                outputs.append(int(chart.meter))
+
                 
             bar.next()
 
-    return
     print(f"{len(inputs)} nodes")
 
-    inputshape = (len(inputs),len(inputs[0]))
+    inputshape = (len(inputs),np.shape(inputs[0]))
+    outputs = np.array(outputs)
     return inputs, outputs
 
 
-def model_builder(hp):
+def model_builder():
     global inputshape
     model = keras.Sequential()
-    model.add(keras.layers.Flatten(input_shape=inputshape))
 
-    # Tune the number of units in the first Dense layer
-    # Choose an optimal value between 32-512
-    hp_units = hp.Int('units', min_value=32, max_value=512, step=32)
-    model.add(keras.layers.Dense(units=hp_units, activation='relu'))
-    model.add(keras.layers.Dense(10))
+    model.add(tf.keras.layers.Reshape((10,-1), input_shape=(6340,)))
 
-    # Tune the learning rate for the optimizer
-    # Choose an optimal value from 0.01, 0.001, or 0.0001
-    hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+    # Add a LSTM layer with 128 internal units.
+    model.add(keras.layers.SimpleRNN(128))
 
-    model.compile(optimizer=keras.optimizers.Adam(learning_rate=hp_learning_rate),
-                loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-                metrics=['accuracy'])
+    # Add a Dense layer with 10 units.
+    model.add(keras.layers.Dense(1, activation='softmax'))
 
     return model
 
+def norm_outputs(labels, output):
+    maxl = max(labels)
+    minl = min(labels)
+
 
 if __name__ == "__main__":
-    create_nodes('./data/dataset/')
-else:
-    dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
-    # tuner = kt.Hyperband(model_builder,
-    #     objective='val_accuracy',
-    #     max_epochs=10,
-    #     factor=3,
-    #     directory='./data/model',
-    #     project_name=dt)
+    inputs, outputs = create_nodes('./data/dataset/')
 
-    model = ak.StructuredDataRegressor(
-        inputs=inputs,
-        outputs=outputs,
-        project_name=dt,
-        directory='./data/model',
-        max_trials=5,
-        tuner="hyperband")
+    inputs = np.reshape(inputs, (5, -1))
+    print(np.shape(inputs))
+    print(np.shape(outputs))
+    print(outputs)
+
+    labels = sorted(np.unique(outputs))
+
+    dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
+
+    model = model_builder()
+
+    model.build(np.shape(inputs))
+
+    model.summary()
+    model.compile(    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+    optimizer="sgd",
+    metrics=["accuracy"],
+    )
+
+    # model = ak.StructuredDataRegressor(
+    #     project_name=dt,
+    #     directory='./data/model',
+    #     max_trials=5)
+    
+    model.fit(inputs, outputs, epochs=10)
     
     print(f"Model {model} created")
     print("~~~~~~~~~~~~~~~")
