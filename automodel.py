@@ -123,28 +123,37 @@ def model_builder():
     global inputshape
     model = keras.Sequential()
 
-    model.add(tf.keras.layers.Reshape((10,-1), input_shape=(6340,)))
+    model.add(tf.keras.layers.Reshape((-1,10), input_shape=(6340,)))
 
     # Add a LSTM layer with 128 internal units.
-    model.add(keras.layers.SimpleRNN(128))
-
+    # model.add(keras.layers.SimpleRNN(1))
+    model.add(keras.layers.Conv1D(1,10, strides=10, input_shape=(None,10)))
+    model.add(keras.layers.GlobalMaxPooling1D())
+    model.add(keras.layers.BatchNormalization())
     # Add a Dense layer with 10 units.
-    model.add(keras.layers.Dense(1, activation='softmax'))
+    #model.add(keras.layers.Dense(1, activation='softmax'))
 
     return model
 
-def norm_outputs(labels, output):
-    maxl = max(labels)
-    minl = min(labels)
+def norm_outputs(output):
+    maxl = max(output)
+    minl = min(output)
+
+    diff_range = maxl-minl + 0.00001 #scale down values to prevent 1.0 thresholds
+
+    thresholds = np.array([(block-minl)/diff_range for block in output], dtype=np.float32)
+
+    return thresholds
 
 
 if __name__ == "__main__":
     inputs, outputs = create_nodes('./data/dataset/')
 
     inputs = np.reshape(inputs, (5, -1))
-    print(np.shape(inputs))
-    print(np.shape(outputs))
-    print(outputs)
+    # print(np.shape(inputs))
+    # print(np.shape(outputs))
+    normalized_outputs = norm_outputs(outputs)
+    print(normalized_outputs)
 
     labels = sorted(np.unique(outputs))
 
@@ -165,15 +174,29 @@ if __name__ == "__main__":
     #     directory='./data/model',
     #     max_trials=5)
     
-    model.fit(inputs, outputs, epochs=10)
-    
+    model.fit(inputs, normalized_outputs, epochs=1)
+    #model.train_on_batch(inputs, normalized_outputs)
+
     print(f"Model {model} created")
     print("~~~~~~~~~~~~~~~")
 
     print("Predicting Sample")
     samplein, sampleout = create_nodes('./data/testset')
+
+    for i in range(len(samplein)):
+        samplein[i] = samplein[i][:,:634]
+
+    samplein = np.reshape(samplein, (5, -1))
     prediction = model.predict(samplein)
-    
+    #prediction = model.predict_on_batch(samplein)
+
+    print(f"\n\n###############PREDICTION################")
+    print(prediction)
+    print("after")
+    diff_range = max(outputs) - min(outputs)
+    prediction = [(tensor[0]*diff_range)+min(outputs) for tensor in prediction]
+    print(prediction)
+
     #Display the predicted difficulties alongside actual
     total_error = 0
     for i in range(len(prediction)):
