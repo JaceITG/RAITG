@@ -24,13 +24,13 @@ inputshape = (0,0)
 # Create an array of AutoKeras StructuredDataInput nodes from the .cht files in dataset.
 # Each input node in shape [ beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
 # Each output node as integer difficulty
-def create_nodes(dataset):
+def create_nodes(dataset, pad=0):
     global inputshape
 
     inputs = []
     outputs = []
 
-    maxnotes = 0
+    maxnotes = pad
     chart_count = 0
 
     for f in os.listdir(dataset):
@@ -108,6 +108,7 @@ def create_nodes(dataset):
 
                 inputs.append(np.vstack(data).T)
                 outputs.append(int(chart.meter))
+                chart_count += 1
 
                 
             bar.next()
@@ -116,22 +117,29 @@ def create_nodes(dataset):
 
     inputshape = (len(inputs),np.shape(inputs[0]))
     outputs = np.array(outputs)
-    return inputs, outputs
+    return inputs, outputs, chart_count
 
 
 def model_builder():
+    model = keras.Sequential()
+
+    model.add(tf.keras.layers.Reshape((-1,10), input_shape=(6340,)))
+    
+    model.add(tf.keras.layers.RepeatVector(2))
+
+    model.add(tf.keras.layers.MultiHeadAttention(num_heads=2, key_dim=2, output_shape=(1)))
+
+    return model
+
+def conv_builder():
     global inputshape
     model = keras.Sequential()
 
     model.add(tf.keras.layers.Reshape((-1,10), input_shape=(6340,)))
 
-    # Add a LSTM layer with 128 internal units.
-    # model.add(keras.layers.SimpleRNN(1))
     model.add(keras.layers.Conv1D(1,10, strides=10, input_shape=(None,10)))
     model.add(keras.layers.GlobalMaxPooling1D())
     model.add(keras.layers.BatchNormalization())
-    # Add a Dense layer with 10 units.
-    #model.add(keras.layers.Dense(1, activation='softmax'))
 
     return model
 
@@ -147,21 +155,32 @@ def norm_outputs(output):
 
 
 if __name__ == "__main__":
-    inputs, outputs = create_nodes('./data/dataset/')
+    inputs, outputs, samples = create_nodes('./data/dataset/')
 
-    inputs = np.reshape(inputs, (5, -1))
-    # print(np.shape(inputs))
+    inputs = np.reshape(inputs, (samples, -1, 10))
+    trainlength = np.shape(inputs)[1]
+    print(np.shape(inputs))
     # print(np.shape(outputs))
     normalized_outputs = norm_outputs(outputs)
-    print(normalized_outputs)
 
     labels = sorted(np.unique(outputs))
 
     dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
 
-    model = model_builder()
+    attLayer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2, output_shape=(1), attention_axes=(1))
 
-    model.build(np.shape(inputs))
+    input_seq = keras.Input(shape=(trainlength, 10))
+    #reshaped = keras.layers.Reshape((-1,10), input_shape=(6340,))(input_seq)
+    output_tensor = attLayer(input_seq, input_seq)
+    pooling = keras.layers.GlobalMaxPooling1D()
+    normalization = keras.layers.BatchNormalization()
+    out = normalization(pooling(output_tensor), training=True)
+
+    model = keras.models.Model(inputs=input_seq, outputs=out)
+
+    # model = model_builder()
+
+    # model.build(np.shape(inputs))
 
     model.summary()
     model.compile(    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=False),
@@ -174,19 +193,20 @@ if __name__ == "__main__":
     #     directory='./data/model',
     #     max_trials=5)
     
-    model.fit(inputs, normalized_outputs, epochs=1)
+    model.fit(inputs, normalized_outputs, epochs=10)
     #model.train_on_batch(inputs, normalized_outputs)
 
     print(f"Model {model} created")
     print("~~~~~~~~~~~~~~~")
 
     print("Predicting Sample")
-    samplein, sampleout = create_nodes('./data/testset')
+    samplein, sampleout, samples = create_nodes('./data/testset', pad=trainlength)
 
     for i in range(len(samplein)):
-        samplein[i] = samplein[i][:,:634]
+        samplein[i] = samplein[i][:,:trainlength]
 
-    samplein = np.reshape(samplein, (5, -1))
+    samplein = np.reshape(samplein, (samples, -1, 10))
+
     prediction = model.predict(samplein)
     #prediction = model.predict_on_batch(samplein)
 
