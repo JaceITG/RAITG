@@ -172,9 +172,10 @@ if __name__ == "__main__":
     input_seq = keras.Input(shape=(trainlength, 10))
     #reshaped = keras.layers.Reshape((-1,10), input_shape=(6340,))(input_seq)
     output_tensor = attLayer(input_seq, input_seq)
-    pooling = keras.layers.GlobalMaxPooling1D()
-    normalization = keras.layers.BatchNormalization()
-    out = normalization(pooling(output_tensor), training=True)
+    #output_tensor = keras.layers.LayerNormalization(axis=1)(output_tensor)
+    pooling = keras.layers.GlobalAvgPool1D()
+    #normalization = keras.layers.BatchNormalization()
+    out = pooling(output_tensor)
 
     model = keras.models.Model(inputs=input_seq, outputs=out)
 
@@ -193,7 +194,7 @@ if __name__ == "__main__":
     #     directory='./data/model',
     #     max_trials=5)
     
-    model.fit(inputs, normalized_outputs, epochs=10)
+    model.fit(inputs, normalized_outputs, epochs=5)
     #model.train_on_batch(inputs, normalized_outputs)
 
     print(f"Model {model} created")
@@ -213,8 +214,10 @@ if __name__ == "__main__":
     print(f"\n\n###############PREDICTION################")
     print(prediction)
     print("after")
+    prediction = [abs(tensor[0]) for tensor in prediction]
+    prediction = norm_outputs(prediction)
     diff_range = max(outputs) - min(outputs)
-    prediction = [(tensor[0]*diff_range)+min(outputs) for tensor in prediction]
+    prediction = [(tensor*diff_range)+min(outputs) for tensor in prediction]
     print(prediction)
 
     #Display the predicted difficulties alongside actual
