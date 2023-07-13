@@ -1,4 +1,4 @@
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 from datetime import datetime
@@ -208,23 +208,35 @@ if __name__ == "__main__":
 
     samplein = np.reshape(samplein, (samples, -1, 10))
 
-    prediction = model.predict(samplein)
+    prediction = []
+    for i in range(samples):
+        pred = model.predict(np.array([samplein[i]]))
+        prediction.append(pred[0])
+    
     #prediction = model.predict_on_batch(samplein)
 
     print(f"\n\n###############PREDICTION################")
     print(prediction)
-    print("after")
     prediction = [abs(tensor[0]) for tensor in prediction]
     prediction = norm_outputs(prediction)
     diff_range = max(outputs) - min(outputs)
-    prediction = [(tensor*diff_range)+min(outputs) for tensor in prediction]
-    print(prediction)
+    prediction = np.array([(tensor*diff_range)+min(outputs) for tensor in prediction])
+
+    #Graph results
+    #find line of best fit
+    a, b = np.polyfit(sampleout, prediction, 1)
+    plt.scatter(sampleout, prediction)
+    plt.plot(sampleout, a*sampleout+b)
+    plt.xlabel("User-defined Difficulty")
+    plt.ylabel("Predicted Difficulty")
+    plt.savefig(f"figures/{dt}.png")
 
     #Display the predicted difficulties alongside actual
     total_error = 0
     for i in range(len(prediction)):
         errorperc = ( abs(prediction[i] - sampleout[i]) / float(sampleout[i]) ) * 100
-        print(f"Predicted {prediction[i]:02}\tActual {sampleout[i]:02} (Error: {errorperc:02.01}%)")
+        print(f"Predicted {prediction[i]:02.1f}\tActual {sampleout[i]:02} (Error: {errorperc:.1f}%)")
+
         total_error += errorperc
 
     print()
