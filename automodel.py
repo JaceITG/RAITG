@@ -119,7 +119,7 @@ def create_nodes(dataset, pad=0):
     outputs = np.array(outputs)
     return inputs, outputs, chart_count
 
-
+#
 def model_builder():
     model = keras.Sequential()
 
@@ -160,13 +160,14 @@ if __name__ == "__main__":
     inputs = np.reshape(inputs, (samples, -1, 10))
     trainlength = np.shape(inputs)[1]
     print(np.shape(inputs))
-    # print(np.shape(outputs))
+
     normalized_outputs = norm_outputs(outputs)
 
     labels = sorted(np.unique(outputs))
 
     dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
 
+    ### MODEL LAYERS ###
     attLayer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2, output_shape=(1), attention_axes=(1))
 
     input_seq = keras.Input(shape=(trainlength, 10))
@@ -179,22 +180,13 @@ if __name__ == "__main__":
 
     model = keras.models.Model(inputs=input_seq, outputs=out)
 
-    # model = model_builder()
-
-    # model.build(np.shape(inputs))
-
     model.summary()
     model.compile(    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=False),
     optimizer="sgd",
     metrics=["accuracy"],
     )
-
-    # model = ak.StructuredDataRegressor(
-    #     project_name=dt,
-    #     directory='./data/model',
-    #     max_trials=5)
     
-    model.fit(inputs, normalized_outputs, epochs=5)
+    model.fit(inputs, normalized_outputs, epochs=10)
     #model.train_on_batch(inputs, normalized_outputs)
 
     print(f"Model {model} created")
