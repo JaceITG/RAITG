@@ -10,7 +10,7 @@ As players created more difficult Tech charts, they adopted an expanded scale. I
 
 # The Model
 ## First Approach
-The initial design of the model utilizes a Mutli-Headed Attention layer to identify features of a chart's note data most relevant to its perceived difficulty. These attention weights are then averaged across the pool to converge on a single numerical difficulty value to assign to the chart.
+The initial design of the model utilizes a [Mutli-Headed Attention](https://keras.io/api/layers/attention_layers/multi_head_attention/) layer to identify features of a chart's note data most relevant to its perceived difficulty. These attention weights are then averaged across the pool to converge on a single numerical difficulty value to assign to the chart.
 
 ![model diagram](figures/model_diagram.png)
 
