@@ -98,7 +98,7 @@ def create_nodes(dataset, pad=0):
                 
                 #pad chart for maximum note length
                 blankend = np.array([0]*10, dtype=np.float32)
-                blankend[0] = data[-1][0] + 1
+                #blankend[0] = data[-1][0] + 1
                 data += [blankend for i in range(maxnotes - len(data))]
 
                 # print(f'{song.title} [{chart.difficulty}] Notes: {len(data)}')
@@ -153,6 +153,23 @@ def norm_outputs(output):
 
     return thresholds
 
+def graph(prediction, sampleout, wape):
+    #Graph results
+    fig, ax = plt.subplots()
+    ax.scatter(sampleout, prediction)
+
+    #find line of best fit
+    a, b = np.polyfit(sampleout, prediction, 1)
+    ax.plot(sampleout, a*sampleout+b)
+
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    # place a text box in upper left in axes coords
+    ax.text(0.05, 0.95, f"WAPE={wape:.2f}%", transform=ax.transAxes, fontsize=14,
+        verticalalignment='top', bbox=props)
+
+    plt.xlabel("User-defined Difficulty")
+    plt.ylabel("Predicted Difficulty")
+    plt.savefig(f"figures/{dt}.png")
 
 if __name__ == "__main__":
     inputs, outputs, samples = create_nodes('./data/dataset/')
@@ -171,6 +188,7 @@ if __name__ == "__main__":
     attLayer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2, output_shape=(1), attention_axes=(1))
 
     input_seq = keras.Input(shape=(trainlength, 10))
+    #masked = keras.layers.Masking()(input_seq)
     #reshaped = keras.layers.Reshape((-1,10), input_shape=(6340,))(input_seq)
     output_tensor = attLayer(input_seq, input_seq)
     #output_tensor = keras.layers.LayerNormalization(axis=1)(output_tensor)
@@ -186,7 +204,7 @@ if __name__ == "__main__":
     metrics=["accuracy"],
     )
     
-    model.fit(inputs, normalized_outputs, epochs=10)
+    model.fit(inputs, normalized_outputs, epochs=5)
     #model.train_on_batch(inputs, normalized_outputs)
 
     print(f"Model {model} created")
@@ -214,14 +232,11 @@ if __name__ == "__main__":
     diff_range = max(outputs) - min(outputs)
     prediction = np.array([(tensor*diff_range)+min(outputs) for tensor in prediction])
 
-    #Graph results
-    #find line of best fit
-    a, b = np.polyfit(sampleout, prediction, 1)
-    plt.scatter(sampleout, prediction)
-    plt.plot(sampleout, a*sampleout+b)
-    plt.xlabel("User-defined Difficulty")
-    plt.ylabel("Predicted Difficulty")
-    plt.savefig(f"figures/{dt}.png")
+    #Calculate Weighted Average Percent Error
+    wape = sum([abs(a - p) for a, p in zip(sampleout, prediction)]) / sum(sampleout)
+    wape*=100
+
+    graph(prediction, sampleout, wape)
 
     #Display the predicted difficulties alongside actual
     total_error = 0
@@ -231,6 +246,7 @@ if __name__ == "__main__":
 
         total_error += errorperc
 
+
     print()
-    print(f"Average error: {total_error/len(prediction)}")
+    print(f"WAPE: {wape:.2f}%")
 
