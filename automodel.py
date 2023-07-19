@@ -190,7 +190,7 @@ if __name__ == "__main__":
         decay_steps=10000,
         decay_rate=0.9)
 
-    model.compile(    loss=keras.losses.MeanSquaredError(),
+    model.compile(    loss=keras.losses.Huber(),
     optimizer=keras.optimizers.Adam(learning_rate=lr_schedule),
     metrics=["accuracy"],
     )
