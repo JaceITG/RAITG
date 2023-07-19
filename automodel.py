@@ -21,6 +21,9 @@ import tensorflow as tf
 from tensorflow import keras
 inputshape = (0,0)
 
+epochs = 10
+model_desc = "Averaged Default MHA"
+
 # Create an array of AutoKeras StructuredDataInput nodes from the .cht files in dataset.
 # Each input node in shape [ beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
 # Each output node as integer difficulty
@@ -119,30 +122,6 @@ def create_nodes(dataset, pad=0):
     outputs = np.array(outputs)
     return inputs, outputs, chart_count
 
-#
-def model_builder():
-    model = keras.Sequential()
-
-    model.add(tf.keras.layers.Reshape((-1,10), input_shape=(6340,)))
-    
-    model.add(tf.keras.layers.RepeatVector(2))
-
-    model.add(tf.keras.layers.MultiHeadAttention(num_heads=2, key_dim=2, output_shape=(1)))
-
-    return model
-
-def conv_builder():
-    global inputshape
-    model = keras.Sequential()
-
-    model.add(tf.keras.layers.Reshape((-1,10), input_shape=(6340,)))
-
-    model.add(keras.layers.Conv1D(1,10, strides=10, input_shape=(None,10)))
-    model.add(keras.layers.GlobalMaxPooling1D())
-    model.add(keras.layers.BatchNormalization())
-
-    return model
-
 def norm_outputs(output):
     maxl = max(output)
     minl = min(output)
@@ -169,6 +148,7 @@ def graph(prediction, sampleout, wape):
 
     plt.xlabel("User-defined Difficulty")
     plt.ylabel("Predicted Difficulty")
+    plt.title(f"{model_desc} trained for {epochs} epochs")
     plt.savefig(f"figures/{dt}.png")
 
 if __name__ == "__main__":
@@ -188,23 +168,34 @@ if __name__ == "__main__":
     attLayer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2, output_shape=(1), attention_axes=(1))
 
     input_seq = keras.Input(shape=(trainlength, 10))
+    output_tensor = attLayer(input_seq, input_seq)
+    pooling = keras.layers.GlobalAvgPool1D()
+    out = pooling(output_tensor)
+    
+    ### UNUSED
+    # normalization = keras.layers.BatchNormalization()
     #masked = keras.layers.Masking()(input_seq)
     #reshaped = keras.layers.Reshape((-1,10), input_shape=(6340,))(input_seq)
-    output_tensor = attLayer(input_seq, input_seq)
+    # conv = keras.layers.Conv1D(10, 10, input_shape=(trainlength, 10), padding='causal')
+    # input_seq = conv(input_seq)
     #output_tensor = keras.layers.LayerNormalization(axis=1)(output_tensor)
-    pooling = keras.layers.GlobalAvgPool1D()
-    #normalization = keras.layers.BatchNormalization()
-    out = pooling(output_tensor)
+
 
     model = keras.models.Model(inputs=input_seq, outputs=out)
 
     model.summary()
-    model.compile(    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=False),
-    optimizer="sgd",
+
+    lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate=1e-2,
+        decay_steps=10000,
+        decay_rate=0.9)
+
+    model.compile(    loss=keras.losses.MeanSquaredError(),
+    optimizer=keras.optimizers.Adam(learning_rate=lr_schedule),
     metrics=["accuracy"],
     )
     
-    model.fit(inputs, normalized_outputs, epochs=5)
+    model.fit(inputs, normalized_outputs, epochs=epochs)
     #model.train_on_batch(inputs, normalized_outputs)
 
     print(f"Model {model} created")
@@ -227,6 +218,12 @@ if __name__ == "__main__":
 
     print(f"\n\n###############PREDICTION################")
     print(prediction)
+
+    #shift-positive if range of predictions spans pos and neg vals
+    if min(prediction)>0 and max(prediction)>0:
+        m = abs(min(prediction))
+        prediction = [p+m for p in prediction]
+
     prediction = [abs(tensor[0]) for tensor in prediction]
     prediction = norm_outputs(prediction)
     diff_range = max(outputs) - min(outputs)

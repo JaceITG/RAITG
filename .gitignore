@@ -2,3 +2,4 @@ utils/testmeasure.py
 data/
 __pycache__/
 train*
+figures/
