@@ -22,7 +22,7 @@ from tensorflow import keras
 inputshape = (0,0)
 
 epochs = 10
-model_desc = "Averaged Default MHA"
+model_desc = "Averaged MHA"
 
 # Create an array of AutoKeras StructuredDataInput nodes from the .cht files in dataset.
 # Each input node in shape [ beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
@@ -165,7 +165,14 @@ if __name__ == "__main__":
     dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
 
     ### MODEL LAYERS ###
-    attLayer = keras.layers.MultiHeadAttention(num_heads=2, key_dim=2, output_shape=(1), attention_axes=(1))
+    nonneg = keras.constraints.NonNeg()
+    attLayer = keras.layers.MultiHeadAttention(
+        num_heads=2,
+        key_dim=2,
+        value_dim=4,
+        output_shape=(1),
+        attention_axes=(2),
+        kernel_constraint=nonneg)
 
     input_seq = keras.Input(shape=(trainlength, 10))
     output_tensor = attLayer(input_seq, input_seq)
@@ -173,11 +180,10 @@ if __name__ == "__main__":
     out = pooling(output_tensor)
     
     ### UNUSED
+    # conv = keras.layers.Conv1DTranspose(1, 3, input_shape=(trainlength, 10), data_format='channels_last')
+    # convoluted = conv(input_seq)
     # normalization = keras.layers.BatchNormalization()
-    #masked = keras.layers.Masking()(input_seq)
     #reshaped = keras.layers.Reshape((-1,10), input_shape=(6340,))(input_seq)
-    # conv = keras.layers.Conv1D(10, 10, input_shape=(trainlength, 10), padding='causal')
-    # input_seq = conv(input_seq)
     #output_tensor = keras.layers.LayerNormalization(axis=1)(output_tensor)
 
 
@@ -230,6 +236,7 @@ if __name__ == "__main__":
     prediction = np.array([(tensor*diff_range)+min(outputs) for tensor in prediction])
 
     #Calculate Weighted Average Percent Error
+    # WAPE = ( Σ|Actual-Predicted| / Σ|Actual| ) * 100
     wape = sum([abs(a - p) for a, p in zip(sampleout, prediction)]) / sum(sampleout)
     wape*=100
 
@@ -239,7 +246,7 @@ if __name__ == "__main__":
     total_error = 0
     for i in range(len(prediction)):
         errorperc = ( abs(prediction[i] - sampleout[i]) / float(sampleout[i]) ) * 100
-        print(f"Predicted {prediction[i]:02.1f}\tActual {sampleout[i]:02} (Error: {errorperc:.1f}%)")
+        print(f"Predicted {prediction[i]:03.1f}\tActual {sampleout[i]:02} (Error: {errorperc:.1f}%)")
 
         total_error += errorperc
 
