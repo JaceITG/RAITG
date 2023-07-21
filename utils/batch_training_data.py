@@ -19,10 +19,14 @@ def batch(fp, output):
                 songfp = os.path.join(packfp, song)
                 for f in os.listdir(songfp):
                     file = os.path.join(songfp,f)
-                    if os.path.isfile(file) and os.path.splitext(f)[1] == '.ssc':
+                    if os.path.isfile(file) and os.path.splitext(f)[1] in ['.ssc', '.sm']:
+                        if os.path.splitext(f)[0] in sscs:
+                            #Already collected other simfile of song
+                            continue
                         sscs.append(file)
                         count += 1
                         shutil.copyfile(file, f'../data/dataset/{f}')
+
 
     ###OLD PARSER###
     return
