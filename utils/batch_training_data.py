@@ -28,15 +28,6 @@ def batch(fp, output):
                         shutil.copyfile(file, f'../data/dataset/{f}')
 
 
-    ###OLD PARSER###
-    return
-
-    with Bar('Parsing...',suffix='%(percent).1f%% - %(eta)ds',max=count) as bar:
-        for i in range(len(sscs)):
-            parse_chart.main(sscs[i], output_dir=output)
-            bar.next()
-
-
 if __name__ == "__main__":
         
     fp = "C:/Users/Jace/Desktop/Code/RAITG/data/Training Songs"
