@@ -11,8 +11,7 @@ inputshape = (0,0)
 
 dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
 
-epochs = 10
-model_desc = "Averaged MHA"
+model_desc = ""
 
 def norm_outputs(output):
     maxl = max(output)
@@ -40,11 +39,14 @@ def graph(prediction, sampleout, wape, meta):
 
     plt.xlabel("User-defined Difficulty")
     plt.ylabel("Predicted Difficulty")
-    plt.title(f"{meta['model_desc']} trained for {epochs} epochs")
+    plt.title(f"{meta['model_desc']}")
     plt.savefig(f"model/{meta['name']}/graph.png")
 
 def compile(nodes):
+    global model_desc
+
     ### MODEL LAYERS ###
+    model_desc = "Averaged MHA"
     nonneg = keras.constraints.NonNeg()
     attLayer = keras.layers.MultiHeadAttention(
         num_heads=2,
@@ -83,7 +85,7 @@ def compile(nodes):
 
     return model
 
-def train(dataset, save=False, name=None):
+def train(dataset, save=False, name=None, epochs=10):
     if not name:
         name = dt
 

@@ -1,4 +1,4 @@
-import parse_chart, os, sys, shutil
+import os, sys, shutil
 from progress.bar import Bar
 
 
