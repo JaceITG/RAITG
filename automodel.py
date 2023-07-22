@@ -40,7 +40,7 @@ def graph(prediction, sampleout, wape, meta):
     plt.xlabel("User-defined Difficulty")
     plt.ylabel("Predicted Difficulty")
     plt.title(f"{meta['model_desc']}")
-    plt.savefig(f"model/{meta['name']}/graph.png")
+    plt.savefig(f"model/{meta['name']}/graph-{dt}.png")
 
 def compile(nodes):
     global model_desc
@@ -159,13 +159,19 @@ def predict(model, data, testset, make_graph=True):
     if make_graph:
         graph(prediction, sampleout, wape, data)
 
-    #Display the predicted difficulties alongside actual
-    total_error = 0
-    for i in range(len(prediction)):
-        errorperc = ( abs(prediction[i] - sampleout[i]) / float(sampleout[i]) ) * 100
-        print(f"Predicted {prediction[i]:03.1f}\tActual {sampleout[i]:02} (Error: {errorperc:.1f}%) for {names[i]}")
+    #write prediction batch csv
+    with open(f"model/{data['name']}/prediction-{dt}.csv", 'w', encoding='utf-8') as f:
+        f.write("song,actual,prediction\n")
 
-        total_error += errorperc
+        #Display the predicted difficulties alongside actual
+        total_error = 0
+        for i in range(len(prediction)):
+            f.write(f"{names[i]},{sampleout[i]},{prediction[i]}\n")
+
+            errorperc = ( abs(prediction[i] - sampleout[i]) / float(sampleout[i]) ) * 100
+            print(f"Predicted {prediction[i]:03.1f}\tActual {sampleout[i]:02} (Error: {errorperc:.1f}%) for {names[i]}")
+
+            total_error += errorperc
 
     print()
     print(f"WAPE: {wape:.2f}%")
