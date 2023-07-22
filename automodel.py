@@ -1,126 +1,18 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import os
+import os, json
 from datetime import datetime
-from progress.bar import Bar
 
-### Simfile ###
-import simfile
-from simfile.timing.engine import TimingEngine, TimingData
-from simfile.notes import NoteData, NoteType
-from simfile.notes.group import SameBeatNotes
-import simfile.notes.count as Count
-
-relevant_notes = [NoteType.TAP, NoteType.HOLD_HEAD, NoteType.ROLL_HEAD, NoteType.TAIL]
+from utils.process_charts import create_nodes
 
 ### Keras Setup ###
-import autokeras as ak
-import keras_tuner as kt
-
-import tensorflow as tf
 from tensorflow import keras
 inputshape = (0,0)
 
+dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
+
 epochs = 10
 model_desc = "Averaged MHA"
-
-# Create an array of AutoKeras StructuredDataInput nodes from the .cht files in dataset.
-# Each input node in shape [ beat[ arrows,bpm ], beat[ arrows,bpm ], ...]
-# Each output node as integer difficulty
-def create_nodes(dataset, pad=0):
-    global inputshape
-
-    inputs = []
-    outputs = []
-
-    maxnotes = pad
-    chart_count = 0
-
-    for f in os.listdir(dataset):
-        fp = os.path.join(dataset, f)
-        song = simfile.open(fp)
-
-        for chart in song.charts:
-            numnotes = Count.count_steps(\
-                notes=NoteData(chart),\
-                include_note_types=relevant_notes,\
-                same_beat_notes=SameBeatNotes.KEEP_SEPARATE)
-            
-            maxnotes = max(maxnotes, numnotes)
-
-    print(f"Maximum note count: {maxnotes}")
-
-    with Bar('Loading nodes...',suffix='%(percent).1f%% - %(eta)ds',max=len(os.listdir(dataset))) as bar:
-        for f in os.listdir(dataset):
-            fp = os.path.join(dataset, f)
-            song = simfile.open(fp)
-
-            for chart in song.charts:
-                #skip non-singles
-                if chart.stepstype != 'dance-single':
-                    continue
-
-                #Instantiate timing and note data for the chart
-                timing = TimingEngine(TimingData(song, chart))
-                chart_data = NoteData(chart)
-                notes = [(timing.time_at(note.beat), note.column, note.note_type, note.beat) for note in chart_data\
-                         if note.note_type in relevant_notes]
-
-                # print(f'{song.title} [{chart.difficulty}]')
-                # last = None
-                # for t in notes[-5:]:
-                #     print(f'{t} Diff beat? {t[3]!=last[3] if last else "N/A"}')
-                #     last = t
-
-
-                data = []
-                holds = np.zeros(4)
-                last_time = notes[0][0] - 5 #default starting rest of 5 seconds 
-
-                for note in notes:
-                    #Create an nparray for attributes of the note
-                    # time, time since last, 4 columns tap, 4 columns held
-                    data += [np.array([0]*10, dtype=np.float32)]
-
-                    #carry over current held notes
-                    data[-1][6:] = holds
-
-                    data[-1][0] = note[0]   #time
-                    data[-1][1] = min((note[0] - last_time), 5)   #time since last note, cap extended rests at 5
-                    last_time = note[0]
-
-                    if note[2] == NoteType.TAP:
-                        data[-1][2+note[1]] = 1
-
-                    elif note[2] == NoteType.HOLD_HEAD or note[2] == NoteType.ROLL_HEAD:
-                        data[-1][2+note[1]] = 1
-                        holds[note[1]] = 1
-
-                    elif note[2] == NoteType.TAIL:
-                        holds[note[1]] = 0
-                
-                #pad chart for maximum note length
-                blankend = np.array([0]*10, dtype=np.float32)
-                #blankend[0] = data[-1][0] + 1
-                data += [blankend for i in range(maxnotes - len(data))]
-
-                # print(f'{song.title} [{chart.difficulty}] Notes: {len(data)}')
-                # for n in data[-10:]:
-                #     print("Note:")
-                #     print(n)
-
-                inputs.append(np.vstack(data).T)
-                outputs.append(int(chart.meter))
-                chart_count += 1
-
-                
-            bar.next()
-
-    print(f"{len(inputs)} nodes")
-
-    inputshape = (len(inputs),np.shape(inputs[0]))
-    outputs = np.array(outputs)
-    return inputs, outputs, chart_count
 
 def norm_outputs(output):
     maxl = max(output)
@@ -132,7 +24,7 @@ def norm_outputs(output):
 
     return thresholds
 
-def graph(prediction, sampleout, wape):
+def graph(prediction, sampleout, wape, meta):
     #Graph results
     fig, ax = plt.subplots()
     ax.scatter(sampleout, prediction)
@@ -148,22 +40,10 @@ def graph(prediction, sampleout, wape):
 
     plt.xlabel("User-defined Difficulty")
     plt.ylabel("Predicted Difficulty")
-    plt.title(f"{model_desc} trained for {epochs} epochs")
-    plt.savefig(f"figures/{dt}.png")
+    plt.title(f"{meta['model_desc']} trained for {epochs} epochs")
+    plt.savefig(f"model/{meta['name']}/graph.png")
 
-if __name__ == "__main__":
-    inputs, outputs, samples = create_nodes('./data/dataset/')
-
-    inputs = np.reshape(inputs, (samples, -1, 10))
-    trainlength = np.shape(inputs)[1]
-    print(np.shape(inputs))
-
-    normalized_outputs = norm_outputs(outputs)
-
-    labels = sorted(np.unique(outputs))
-
-    dt = datetime.now().isoformat(timespec='minutes').replace(":",'-')
-
+def compile(nodes):
     ### MODEL LAYERS ###
     nonneg = keras.constraints.NonNeg()
     attLayer = keras.layers.MultiHeadAttention(
@@ -174,7 +54,7 @@ if __name__ == "__main__":
         attention_axes=(2),
         kernel_constraint=nonneg)
 
-    input_seq = keras.Input(shape=(trainlength, 10))
+    input_seq = keras.Input(shape=(nodes, 10))
     output_tensor = attLayer(input_seq, input_seq)
     pooling = keras.layers.GlobalAvgPool1D()
     out = pooling(output_tensor)
@@ -200,15 +80,50 @@ if __name__ == "__main__":
     optimizer=keras.optimizers.Adam(learning_rate=lr_schedule),
     metrics=["accuracy"],
     )
+
+    return model
+
+def train(dataset, save=False, name=None):
+    if not name:
+        name = dt
+
+    inputs, outputs, samples, names = create_nodes(dataset)
+
+    inputs = np.reshape(inputs, (samples, -1, 10))
+    trainlength = np.shape(inputs)[1]
+    print(np.shape(inputs))
+
+    normalized_outputs = norm_outputs(outputs)
+
+    model = compile(trainlength)
+    outputs = [str(o) for o in outputs]
+    data = {'trainlength': trainlength,
+            'outputs': ','.join(outputs),
+            'model_desc': model_desc,
+            'name': name}
     
     model.fit(inputs, normalized_outputs, epochs=epochs)
-    #model.train_on_batch(inputs, normalized_outputs)
+
+    os.makedirs(f"./model/{name}/")
+    if save:
+        model.save(f"./model/{name}/model.keras")
+        
+        with open(f"./model/{name}/dataset.json", 'w') as f:
+            json.dump(data, f)
 
     print(f"Model {model} created")
     print("~~~~~~~~~~~~~~~")
+    return model, data
+
+def predict(model, data, testset, make_graph=True):
+    #Load saved model
+    if type(model) == str:
+        model = keras.models.load_model(model)
 
     print("Predicting Sample")
-    samplein, sampleout, samples = create_nodes('./data/testset', pad=trainlength)
+    trainlength = data['trainlength']
+    outputs = [int(o) for o in data['outputs'].split(',')]
+    samplein, sampleout, samples, names = create_nodes(testset, pad=trainlength)
 
     for i in range(len(samplein)):
         samplein[i] = samplein[i][:,:trainlength]
@@ -223,7 +138,6 @@ if __name__ == "__main__":
     #prediction = model.predict_on_batch(samplein)
 
     print(f"\n\n###############PREDICTION################")
-    print(prediction)
 
     #shift-positive if range of predictions spans pos and neg vals
     if min(prediction)>0 and max(prediction)>0:
@@ -240,16 +154,16 @@ if __name__ == "__main__":
     wape = sum([abs(a - p) for a, p in zip(sampleout, prediction)]) / sum(sampleout)
     wape*=100
 
-    graph(prediction, sampleout, wape)
+    if make_graph:
+        graph(prediction, sampleout, wape, data)
 
     #Display the predicted difficulties alongside actual
     total_error = 0
     for i in range(len(prediction)):
         errorperc = ( abs(prediction[i] - sampleout[i]) / float(sampleout[i]) ) * 100
-        print(f"Predicted {prediction[i]:03.1f}\tActual {sampleout[i]:02} (Error: {errorperc:.1f}%)")
+        print(f"Predicted {prediction[i]:03.1f}\tActual {sampleout[i]:02} (Error: {errorperc:.1f}%) for {names[i]}")
 
         total_error += errorperc
-
 
     print()
     print(f"WAPE: {wape:.2f}%")
