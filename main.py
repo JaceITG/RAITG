@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
         #Find model to make prediction with
         models = os.listdir("./model/")
-        if not name or name not in models:
+        if not name or not(name in models):
             #Prefer most recent dated model (starts with digit)
             dated = [m for m in models if m[0].isdigit()]
             if len(dated) < 1 and len(models) > 0:
@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
         if not model:
             raise ValueError("Model could not be found in \"models\" folder")
-        
+
         #Obtain input metadata for the model
         with open(f"model/{model}/dataset.json", 'r') as f:
             data = json.load(f)
