@@ -20,7 +20,7 @@ def batch(fp, output):
                 for f in os.listdir(songfp):
                     file = os.path.join(songfp,f)
                     if os.path.isfile(file) and os.path.splitext(f)[1] in ['.ssc', '.sm']:
-                        if os.path.splitext(f)[0] in sscs:
+                        if os.path.splitext(f)[0] in [os.path.splitext(s)[0] for s in sscs]:
                             #Already collected other simfile of song
                             continue
                         sscs.append(file)
