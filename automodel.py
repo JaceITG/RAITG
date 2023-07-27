@@ -73,6 +73,7 @@ def compile(nodes):
 
     model.summary()
 
+
     lr_schedule = keras.optimizers.schedules.ExponentialDecay(
         initial_learning_rate=1e-2,
         decay_steps=10000,
@@ -93,7 +94,6 @@ def train(dataset, save=False, name=None, epochs=10):
 
     inputs = np.reshape(inputs, (samples, -1, 10))
     trainlength = np.shape(inputs)[1]
-    print(np.shape(inputs))
 
     normalized_outputs = norm_outputs(outputs)
 
@@ -104,10 +104,12 @@ def train(dataset, save=False, name=None, epochs=10):
             'model_desc': model_desc,
             'name': name}
     
+    
     model.fit(inputs, normalized_outputs, epochs=epochs)
 
     os.makedirs(f"./model/{name}/")
     if save:
+        keras.utils.plot_model(model, to_file=f"./model/{name}/model.png", show_shapes=True)
         model.save(f"./model/{name}/model.keras")
         
         with open(f"./model/{name}/dataset.json", 'w') as f:
@@ -121,6 +123,8 @@ def predict(model, data, testset, make_graph=True):
     #Load saved model
     if type(model) == str:
         model = keras.models.load_model(model)
+
+    keras.utils.plot_model(model, to_file=f"./model/{data['name']}/model.png", show_shapes=True)
 
     print("Predicting Sample")
     trainlength = data['trainlength']
