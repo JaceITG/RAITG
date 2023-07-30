@@ -9,6 +9,7 @@ for a list of available commands and arguments.
 
 ## Example
 To execute a full training and prediction run of a new model named `MyModel`, while saving a copy of the model, run:
+
 `python main.py full --name=MyModel -s`
 
 This will train the model for a default 10 epochs (configurable via the `--epochs=` argument) on any charts located in `./data/dataset/`, and start a prediction run using charts in `./data/testset/`.
