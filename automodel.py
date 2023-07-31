@@ -124,7 +124,7 @@ def predict(model, data, testset, make_graph=True):
     if type(model) == str:
         model = keras.models.load_model(model)
 
-    keras.utils.plot_model(model, to_file=f"./model/{data['name']}/model.png", show_shapes=True)
+    # keras.utils.plot_model(model, to_file=f"./model/{data['name']}/model.png", show_shapes=True)
 
     print("Predicting Sample")
     trainlength = data['trainlength']
